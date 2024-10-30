@@ -178,12 +178,34 @@ B-Tree 인덱스에서 작업 범위 결정 조건으로 사용할 수 없는 �
 위 조건을 만족하는 쿼리는 `column_1`부터 `column_i`까지 작업 범위 결정 조건으로 사용되고, `column_(i+1)`부터 `column_n`까지는 체크 조건으로 사용된다.
 
 ## 실습
-- 총대마켓 서비스 설명
-	- 어떤 서비스인지?
-	- 어떤 테이블 구조를 가지는지?
-	- 어떤 데이터를 가지고 있는지?
-- 어떤 쿼리를 가지고 있는지?
-	- 성능이 좋지 않은 쿼리
+### 총대마켓
+총대마켓은 원하는 상품을 함께 구매하고 싶은 사람을 모아 공동구매를 진행하거나, 다른 공동구매에 참여하여 저렴하게 상품을 구매할 수 있는 플랫폼이다.
+
+### 테이블 구조
+![image](https://private-user-images.githubusercontent.com/88581911/372801139-6136f2c3-7029-4dfd-ac05-b40f7c98ca62.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzAyOTQ0MTcsIm5iZiI6MTczMDI5NDExNywicGF0aCI6Ii84ODU4MTkxMS8zNzI4MDExMzktNjEzNmYyYzMtNzAyOS00ZGZkLWFjMDUtYjQwZjdjOThjYTYyLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDEwMzAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMDMwVDEzMTUxN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTc3MTY2Nzc0NzNiZTlhNmRmZTcyZjkwMWU2YmUxMGIzYzZmOTBjYjlmYjQ2NWU1NmZkNmMwNjNhY2ZmZTE2YzkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.7St2hEg1sEtLruzrxsytvg-j2D4MGjIWJnG-OfuAuug)
+총 4개의 테이블을 가지고 있다.
+- 사용자 정보를 담고 있는 사용자 테이블(Member), 공동구매 모집 게시글을 의미하는 공모 테이블(Offering), 각 공동구매에 참여한 사용자의 정보를 담고 있는 공모_사용자 테이블(Offering_Member), 각 공동구매에서 작성한 댓글에 대한 정보를 담고 있는 댓글 테이블(Comment)로 총 4개의 테이블이 존재한다.
+이 중 가장 많이 조회가 일어날 것으로 예상되는 Offering 테이블의 쿼리를 살펴보겠다.
+### 성능이 좋지 않은 쿼리
+```
+SELECT o
+FROM OfferingEntity o
+WHERE (o.offeringStatus = 'IMMINENT')
+    AND (o.meetingDate > :lastMeetingDate OR (o.meetingDate = :lastMeetingDate AND o.id < :lastId))
+    AND (:keyword IS NULL OR o.title LIKE :%keyword% OR o.meetingAddress LIKE :%keyword%)
+ORDER BY o.meetingDate ASC, o.id DESC
+```
+- findImminentOfferingsWithKeyword 메서드
+이 쿼리는 위 메서드를 위해 작성한 JPQL이다.
+- 문제점
+1. `OR`절로 인해 인덱스 사용 불가
+2. 검색어의 경우 앞뒤로 `%`연산자를 사용하느라 인덱스 사용 불가
+
 - 해결방안
-	- 해당 쿼리에 인덱스 생성
-	- 인덱스를 생성하지 않아도 괜찮은 쿼리
+1. 과도한 `OR`절을 줄이기 위해 검색어 키워드가 필요한 쿼리와 그렇지 않은 쿼리를 분리하였다.  
+2. 검색 엔진을 사용하거나 전문 검색 인덱스를 사용하는 것이 이상적이지만, 아직은 그에 대한 적용을 하지 않고 일부만 해결하려고 한다. 우선적으로 앞부분에 붙은 `%`연산자만 제거하여 인덱스를 사용할 수 있도록 하였다.
+
+- 적용한 인덱스
+1. (meeting_date, id desc)
+2. (meeting_address, offering_status)
+3. (title, offering_status)
