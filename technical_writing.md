@@ -26,15 +26,6 @@ B-Tree 인덱스의 주요 특성은 다음과 같다:
 - 인덱스의 키 값은 정렬되어 있다. 하지만 실제 데이터는 정렬되지 않은 상태로 저장될 수 있다. 특히 InnoDB 테이블의 경우, 데이터는 프라이머리 키 순서로 클러스터링되어 디스크에 저장된다. 즉, 비슷한 값을 가진 데이터는 디스크 상에서도 최대한 가까운 위치에 저장된다.
 - B-Tree 인덱스는 테이블의 키 칼럼만을 관리하므로, 나머지 칼럼을 읽기 위해서는 데이터 파일에서 해당 레코드를 추가로 찾아야 한다.
 
-### InnoDB와 MyISAM의 차이점
-
-InnoDB와 MyISAM 두 가지 스토리지 엔진은 B-Tree 인덱스를 처리하는 방식에서 중요한 차이가 있다.
-
-- MyISAM: 세컨더리 인덱스는 물리적인 주소를 참조한다. 즉, 인덱스가 가리키는 레코드는 실제 데이터의 위치를 직접 가리킨다.
-- InnoDB: 세컨더리 인덱스는 프라이머리 키를 참조한다. InnoDB에서 인덱스는 물리적 주소 대신 논리적인 주소를 사용하는 셈이며, 세컨더리 인덱스를 사용할 때는 먼저 프라이머리 키 인덱스를 조회한 후, 이를 통해 실제 데이터를 찾아가야 한다. 따라서 InnoDB에서 세컨더리 인덱스를 사용해 데이터를 검색할 경우, 반드시 프라이머리 키를 저장하는 B-Tree를 다시 검색하는 절차가 필요하다.
-
-이러한 특성 때문에, InnoDB 테이블에서 세컨더리 인덱스를 사용할 때는 추가적인 검색 작업이 발생하며, 이로 인해 성능에 영향을 미칠 수 있다.
-
 ## B-Tree 인덱스 키 추가 및 삭제
 
 B-Tree 인덱스는 데이터를 효율적으로 검색할 수 있지만, 인덱스 키를 추가하거나 삭제하는 작업은 상대적으로 비용이 더 많이 든다. 이 작업들은 데이터의 위치를 찾아 적절히 저장하거나 삭제해야 하며, 때로는 트리의 구조를 변경해야 하기 때문이다. B-Tree 인덱스에서 키를 추가하거나 삭제하는 작업의 특성은 다음과 같다.
@@ -182,8 +173,8 @@ B-Tree 인덱스에서 작업 범위 결정 조건으로 사용할 수 없는 �
 총대마켓은 원하는 상품을 함께 구매하고 싶은 사람을 모아 공동구매를 진행하거나, 다른 공동구매에 참여하여 저렴하게 상품을 구매할 수 있는 플랫폼이다.
 
 ### 테이블 구조
-![image](https://private-user-images.githubusercontent.com/88581911/372801139-6136f2c3-7029-4dfd-ac05-b40f7c98ca62.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzAyOTQ0MTcsIm5iZiI6MTczMDI5NDExNywicGF0aCI6Ii84ODU4MTkxMS8zNzI4MDExMzktNjEzNmYyYzMtNzAyOS00ZGZkLWFjMDUtYjQwZjdjOThjYTYyLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDEwMzAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMDMwVDEzMTUxN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTc3MTY2Nzc0NzNiZTlhNmRmZTcyZjkwMWU2YmUxMGIzYzZmOTBjYjlmYjQ2NWU1NmZkNmMwNjNhY2ZmZTE2YzkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.7St2hEg1sEtLruzrxsytvg-j2D4MGjIWJnG-OfuAuug)
-총 4개의 테이블을 가지고 있다.
+![image](https://github.com/user-attachments/assets/0f90d5f8-0436-4769-88ab-cf586a34226b)
+다음과 같이 총 4개의 테이블을 가지고 있다.
 - 사용자 정보를 담고 있는 사용자 테이블(Member), 공동구매 모집 게시글을 의미하는 공모 테이블(Offering), 각 공동구매에 참여한 사용자의 정보를 담고 있는 공모_사용자 테이블(Offering_Member), 각 공동구매에서 작성한 댓글에 대한 정보를 담고 있는 댓글 테이블(Comment)로 총 4개의 테이블이 존재한다.
 이 중 가장 많이 조회가 일어날 것으로 예상되는 Offering 테이블의 쿼리를 살펴보겠다.
 ### 성능이 좋지 않은 쿼리
